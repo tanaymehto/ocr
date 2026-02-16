@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>OCR Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background-color: #0f3460;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 700px;
+            border: 1px solid #16213e;
+        }
+        
+        h1 {
+            color: #e0e0e0;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 28px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            color: #b0b0b0;
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        
+        input[type="file"] {
+            width: 100%;
+            padding: 12px;
+            background-color: #1a1a2e;
+            border: 1px solid #16213e;
+            border-radius: 6px;
+            color: #e0e0e0;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        
+        select {
+            width: 100%;
+            padding: 12px;
+            background-color: #1a1a2e;
+            border: 1px solid #16213e;
+            border-radius: 6px;
+            color: #e0e0e0;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        
+        input[type="file"]::file-selector-button {
+            background-color: #00d4ff;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            color: #0f3460;
+            font-weight: 600;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        
+        button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);
+            color: #0f3460;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+            margin-top: 10px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+        }
+        
+        hr {
+            border: none;
+            border-top: 1px solid #16213e;
+            margin: 30px 0;
+        }
+        
+        .error {
+            color: #ff6b6b;
+            padding: 15px;
+            background-color: rgba(255, 107, 107, 0.1);
+            border: 1px solid #ff6b6b;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+        
+        .result {
+            margin-top: 20px;
+            padding: 20px;
+            background-color: #1a1a2e;
+            border: 1px solid #16213e;
+            border-radius: 6px;
+        }
+        
+        .result h3 {
+            color: #00d4ff;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        
+        pre {
+            background-color: #0f0f1e;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            max-height: 500px;
+            overflow-y: auto;
+            color: #00ff00;
+            font-size: 13px;
+            line-height: 1.4;
+            border: 1px solid #16213e;
+        }
+        
+        .loader {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 1000;
+        }
+        
+        .loader.active {
+            display: block;
+        }
+        
+        .loader-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 999;
+            display: none;
+        }
+        
+        .loader-overlay.active {
+            display: block;
+        }
+        
+        .spinner {
+            border: 4px solid rgba(0, 212, 255, 0.2);
+            border-top: 4px solid #00d4ff;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .loader-text {
+            color: #00d4ff;
+            font-size: 18px;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="loader-overlay" id="loaderOverlay"></div>
+    <div class="loader" id="loader">
+        <div class="spinner"></div>
+        <div class="loader-text">Processing document...</div>
+    </div>
+    
+    <div class="container">
+        <h1>Government Document OCR</h1>
+        
+        <div style="text-align: center; margin-bottom: 20px; padding: 10px; background-color: #1a1a2e; border-radius: 6px; border-left: 3px solid #00d4ff;">
+            <span style="color: #00d4ff; font-size: 12px; font-weight: 600;">Powered by Tesseract OCR (Open Source)</span>
+        </div>
+
+        <form method="POST" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="file">Upload Image or PDF:</label>
+                <input type="file" name="file" id="file" accept=".png,.jpg,.jpeg,.pdf" required>
+            </div>
+
+            <button type="submit">Extract Text</button>
+        </form>
+
+        <hr>
+
+        {% if error %}
+            <div class="error">
+                <strong>⚠️ Error:</strong> {{ error }}
+            </div>
+        {% endif %}
+
+        {% if text %}
+            <div class="result">
+                <h3>✓ Extracted Text:</h3>
+                <pre>{{ text }}</pre>
+            </div>
+        {% endif %}
+    </div>
+    
+    <script>
+        const form = document.querySelector('form');
+        const loader = document.getElementById('loader');
+        const loaderOverlay = document.getElementById('loaderOverlay');
+        
+        form.addEventListener('submit', function() {
+            loader.classList.add('active');
+            loaderOverlay.classList.add('active');
+        });
+    </script>
+</body>
+</html>

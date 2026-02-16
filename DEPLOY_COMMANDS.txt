@@ -1,0 +1,22 @@
+# Step-by-step deployment commands
+# Run these in PowerShell AFTER installing Google Cloud SDK
+
+# 1. Login to Google Cloud
+gcloud auth login
+
+# 2. Set your project (use the same project ID from your credentials: gen-lang-client-0998176697)
+gcloud config set project gen-lang-client-0998176697
+
+# 3. Enable required APIs
+gcloud services enable run.googleapis.com
+gcloud services enable containerregistry.googleapis.com
+
+# 4. Navigate to app folder
+cd "c:\Users\tanay\Downloads\ocr docs\ocr_web_app"
+
+# 5. Deploy to Cloud Run (this will take 5-10 minutes)
+gcloud run deploy ocr-web-app --source . --platform managed --region us-central1 --allow-unauthenticated --memory 2Gi --timeout 300
+
+# After deployment, you'll get a URL like:
+# https://ocr-web-app-xxxxx-uc.a.run.app
+# Share this URL for your internship demo!

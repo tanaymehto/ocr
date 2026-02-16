@@ -1,0 +1,29 @@
+# Credentials and secrets
+credentials.json
+*.json
+!package.json
+!package-lock.json
+
+# Firebase
+firebase-debug.log
+.firebase/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

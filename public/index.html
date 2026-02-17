@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <title>OCR Demo</title>
     <style>
@@ -8,7 +9,7 @@
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
@@ -18,35 +19,35 @@
             align-items: center;
             padding: 20px;
         }
-        
+
         .container {
             background-color: #0f3460;
             padding: 40px;
             border-radius: 12px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
             width: 100%;
             max-width: 700px;
             border: 1px solid #16213e;
         }
-        
+
         h1 {
             color: #e0e0e0;
             text-align: center;
             margin-bottom: 30px;
             font-size: 28px;
         }
-        
+
         .form-group {
             margin-bottom: 20px;
         }
-        
+
         label {
             color: #b0b0b0;
             display: block;
             margin-bottom: 8px;
             font-weight: 500;
         }
-        
+
         input[type="file"] {
             width: 100%;
             padding: 12px;
@@ -57,7 +58,7 @@
             font-size: 14px;
             cursor: pointer;
         }
-        
+
         input[type="file"]::file-selector-button {
             background-color: #00d4ff;
             border: none;
@@ -68,7 +69,7 @@
             cursor: pointer;
             margin-right: 10px;
         }
-        
+
         button {
             width: 100%;
             padding: 12px;
@@ -81,11 +82,11 @@
             cursor: pointer;
             transition: background-color 0.3s;
         }
-        
+
         button:hover {
             background-color: #00b8d4;
         }
-        
+
         .error {
             background-color: #3d0000;
             color: #ff6b6b;
@@ -94,19 +95,19 @@
             margin-bottom: 20px;
             border-left: 4px solid #ff6b6b;
         }
-        
+
         .result {
             background-color: #1a1a2e;
             padding: 20px;
             border-radius: 6px;
             border-left: 4px solid #00d4ff;
         }
-        
+
         .result h3 {
             color: #00d4ff;
             margin-bottom: 10px;
         }
-        
+
         pre {
             color: #00ff00;
             background-color: #0a0a1a;
@@ -117,14 +118,14 @@
             font-size: 13px;
             line-height: 1.5;
         }
-        
+
         hr {
             border: none;
             height: 1px;
             background-color: #16213e;
             margin: 20px 0;
         }
-        
+
         .loader {
             position: fixed;
             top: 50%;
@@ -133,11 +134,11 @@
             display: none;
             z-index: 1000;
         }
-        
+
         .loader.active {
             display: block;
         }
-        
+
         .loader-overlay {
             position: fixed;
             top: 0;
@@ -148,11 +149,11 @@
             z-index: 999;
             display: none;
         }
-        
+
         .loader-overlay.active {
             display: block;
         }
-        
+
         .spinner {
             border: 4px solid rgba(0, 212, 255, 0.2);
             border-top: 4px solid #00d4ff;
@@ -162,12 +163,17 @@
             animation: spin 1s linear infinite;
             margin: 0 auto 20px;
         }
-        
+
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
         }
-        
+
         .loader-text {
             color: #00d4ff;
             font-size: 18px;
@@ -175,25 +181,30 @@
         }
     </style>
 </head>
+
 <body>
     <div class="loader-overlay" id="loaderOverlay"></div>
     <div class="loader" id="loader">
         <div class="spinner"></div>
         <div class="loader-text">Processing document...</div>
-        <div class="loader-timer" id="loaderTimer" style="color:#fff; font-size:16px; margin-top:10px;">Elapsed: <span id="timerValue">0.0</span> s</div>
+        <div class="loader-timer" id="loaderTimer" style="color:#fff; font-size:16px; margin-top:10px;">Elapsed: <span
+                id="timerValue">0.0</span> s</div>
     </div>
-    
+
     <div class="container">
         <h1>Government Document OCR</h1>
-        
-        <div style="text-align: center; margin-bottom: 20px; padding: 10px; background-color: #1a1a2e; border-radius: 6px; border-left: 3px solid #00d4ff;">
-            <span style="color: #00d4ff; font-size: 12px; font-weight: 600;">Powered by Google Cloud Vision API & Tesseract OCR</span>
+
+        <div
+            style="text-align: center; margin-bottom: 20px; padding: 10px; background-color: #1a1a2e; border-radius: 6px; border-left: 3px solid #00d4ff;">
+            <span style="color: #00d4ff; font-size: 12px; font-weight: 600;">Powered by Google Cloud Vision API &
+                Tesseract OCR</span>
         </div>
 
         <form id="ocrForm">
             <div class="form-group">
                 <label for="engine">Select OCR Engine:</label>
-                <select name="engine" id="engine" style="width: 100%; padding: 12px; background-color: #1a1a2e; border: 1px solid #16213e; border-radius: 6px; color: #e0e0e0; font-size: 14px; cursor: pointer;">
+                <select name="engine" id="engine"
+                    style="width: 100%; padding: 12px; background-color: #1a1a2e; border: 1px solid #16213e; border-radius: 6px; color: #e0e0e0; font-size: 14px; cursor: pointer;">
                     <option value="google">Google Cloud Vision API (Recommended)</option>
                     <option value="tesseract">Tesseract OCR (Free, Local)</option>
                 </select>
@@ -212,10 +223,10 @@
         <div id="errorContainer"></div>
         <div id="resultContainer"></div>
     </div>
-    
+
     <script>
         // Configuration
-        const PRODUCTION_BACKEND_URL = 'https://YOUR-APP-NAME.onrender.com'; // TODO: Replace with your actual Render URL
+        const PRODUCTION_BACKEND_URL = 'https://ocr-4bbf.onrender.com';
 
         // Auto-detect backend URL
         let BACKEND_URL;
@@ -226,7 +237,7 @@
             BACKEND_URL = PRODUCTION_BACKEND_URL;
             console.log('Running in production mode');
         }
-        
+
         const form = document.getElementById('ocrForm');
         const fileInput = document.getElementById('file');
         const engineSelect = document.getElementById('engine');
@@ -240,7 +251,7 @@
 
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
-            
+
             if (!fileInput.files[0]) {
                 showError('Please select a file');
                 return;
@@ -304,4 +315,5 @@
         }
     </script>
 </body>
+
 </html>

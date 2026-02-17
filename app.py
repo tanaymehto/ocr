@@ -145,7 +145,27 @@ def extract_text():
 @app.route('/health', methods=['GET'])
 def health():
     """Health check endpoint"""
-    return jsonify({'status': 'ok', 'tesseract': TESSERACT_AVAILABLE}), 200
+    tesseract_status = False
+    tesseract_error = None
+    
+    # Check if Tesseract is actually callable
+    if TESSERACT_AVAILABLE:
+        try:
+            # Try to get version to verify binary is found
+            pytesseract.get_tesseract_version()
+            tesseract_status = True
+        except Exception as e:
+            tesseract_status = False
+            tesseract_error = str(e)
+            
+    google_status = True if os.environ.get('GOOGLE_APPLICATION_CREDENTIALS') else False
+            
+    return jsonify({
+        'status': 'ok', 
+        'tesseract': tesseract_status,
+        'tesseract_error': tesseract_error,
+        'google_creds_loaded': google_status
+    }), 200
 
 
 if __name__ == "__main__":

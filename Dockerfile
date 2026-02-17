@@ -1,28 +1,25 @@
-# Use Python 3.11 slim image
 FROM python:3.11-slim
 
-# Install system dependencies for pdf2image and Tesseract
+# Install system dependencies for Tesseract and PDF processing
 RUN apt-get update && apt-get install -y \
     tesseract-ocr \
     poppler-utils \
+    libgl1-mesa-glx \
     && rm -rf /var/lib/apt/lists/*
 
-# Set working directory
 WORKDIR /app
 
-# Copy requirements and install Python dependencies
+# Copy requirements first to leverage Docker cache
 COPY requirements.txt .
+
+# Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
+# Copy the rest of the application
 COPY . .
 
-# Set environment variables
-ENV PORT=8080
-ENV PYTHONUNBUFFERED=1
-
-# Expose port
+# Expose the port the app runs on
 EXPOSE 8080
 
-# Run the application with gunicorn
-CMD exec gunicorn --bind :$PORT --workers 1 --threads 8 --timeout 0 app:app
+# Command to run the application using Gunicorn
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "app:app"]

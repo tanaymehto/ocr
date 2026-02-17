@@ -58,17 +58,6 @@
             cursor: pointer;
         }
         
-        select {
-            width: 100%;
-            padding: 12px;
-            background-color: #1a1a2e;
-            border: 1px solid #16213e;
-            border-radius: 6px;
-            color: #e0e0e0;
-            font-size: 14px;
-            cursor: pointer;
-        }
-        
         input[type="file"]::file-selector-button {
             background-color: #00d4ff;
             border: none;
@@ -82,71 +71,66 @@
         
         button {
             width: 100%;
-            padding: 14px;
-            background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);
-            color: #0f3460;
+            padding: 12px;
+            background-color: #00d4ff;
             border: none;
             border-radius: 6px;
-            font-size: 16px;
+            color: #0f3460;
             font-weight: 600;
+            font-size: 16px;
             cursor: pointer;
-            transition: transform 0.2s;
-            margin-top: 10px;
+            transition: background-color 0.3s;
         }
         
         button:hover {
-            transform: translateY(-2px);
-        }
-        
-        hr {
-            border: none;
-            border-top: 1px solid #16213e;
-            margin: 30px 0;
+            background-color: #00b8d4;
         }
         
         .error {
+            background-color: #3d0000;
             color: #ff6b6b;
             padding: 15px;
-            background-color: rgba(255, 107, 107, 0.1);
-            border: 1px solid #ff6b6b;
             border-radius: 6px;
             margin-bottom: 20px;
+            border-left: 4px solid #ff6b6b;
         }
         
         .result {
-            margin-top: 20px;
-            padding: 20px;
             background-color: #1a1a2e;
-            border: 1px solid #16213e;
+            padding: 20px;
             border-radius: 6px;
+            border-left: 4px solid #00d4ff;
         }
         
         .result h3 {
             color: #00d4ff;
-            margin-bottom: 15px;
-            font-size: 18px;
+            margin-bottom: 10px;
         }
         
         pre {
-            background-color: #0f0f1e;
+            color: #00ff00;
+            background-color: #0a0a1a;
             padding: 15px;
             border-radius: 4px;
             overflow-x: auto;
-            max-height: 500px;
-            overflow-y: auto;
-            color: #00ff00;
+            font-family: 'Courier New', monospace;
             font-size: 13px;
-            line-height: 1.4;
-            border: 1px solid #16213e;
+            line-height: 1.5;
+        }
+        
+        hr {
+            border: none;
+            height: 1px;
+            background-color: #16213e;
+            margin: 20px 0;
         }
         
         .loader {
-            display: none;
             position: fixed;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            text-align: center;
+            display: none;
             z-index: 1000;
         }
         
@@ -203,10 +187,18 @@
         <h1>Government Document OCR</h1>
         
         <div style="text-align: center; margin-bottom: 20px; padding: 10px; background-color: #1a1a2e; border-radius: 6px; border-left: 3px solid #00d4ff;">
-            <span style="color: #00d4ff; font-size: 12px; font-weight: 600;">Powered by Tesseract OCR (Open Source)</span>
+            <span style="color: #00d4ff; font-size: 12px; font-weight: 600;">Powered by Google Cloud Vision API & Tesseract OCR</span>
         </div>
 
-        <form method="POST" enctype="multipart/form-data">
+        <form id="ocrForm">
+            <div class="form-group">
+                <label for="engine">Select OCR Engine:</label>
+                <select name="engine" id="engine" style="width: 100%; padding: 12px; background-color: #1a1a2e; border: 1px solid #16213e; border-radius: 6px; color: #e0e0e0; font-size: 14px; cursor: pointer;">
+                    <option value="google">Google Cloud Vision API (Recommended)</option>
+                    <option value="tesseract">Tesseract OCR (Free, Local)</option>
+                </select>
+            </div>
+
             <div class="form-group">
                 <label for="file">Upload Image or PDF:</label>
                 <input type="file" name="file" id="file" accept=".png,.jpg,.jpeg,.pdf" required>
@@ -217,46 +209,99 @@
 
         <hr>
 
-        {% if error %}
-            <div class="error">
-                <strong>⚠️ Error:</strong> {{ error }}
-            </div>
-        {% endif %}
-
-        {% if text %}
-            <div class="result">
-                <h3>✓ Extracted Text:</h3>
-                <pre>{{ text }}</pre>
-            </div>
-        {% endif %}
+        <div id="errorContainer"></div>
+        <div id="resultContainer"></div>
     </div>
     
     <script>
-        const form = document.querySelector('form');
+        // Configuration
+        const PRODUCTION_BACKEND_URL = 'https://YOUR-APP-NAME.onrender.com'; // TODO: Replace with your actual Render URL
+
+        // Auto-detect backend URL
+        let BACKEND_URL;
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            BACKEND_URL = 'http://localhost:5000';
+            console.log('Running in development mode');
+        } else {
+            BACKEND_URL = PRODUCTION_BACKEND_URL;
+            console.log('Running in production mode');
+        }
+        
+        const form = document.getElementById('ocrForm');
+        const fileInput = document.getElementById('file');
+        const engineSelect = document.getElementById('engine');
         const loader = document.getElementById('loader');
         const loaderOverlay = document.getElementById('loaderOverlay');
         const timerValue = document.getElementById('timerValue');
         let timerInterval;
         let startTime;
+        const errorContainer = document.getElementById('errorContainer');
+        const resultContainer = document.getElementById('resultContainer');
 
-        form.addEventListener('submit', function() {
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            if (!fileInput.files[0]) {
+                showError('Please select a file');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            formData.append('engine', engineSelect.value);
+
             loader.classList.add('active');
             loaderOverlay.classList.add('active');
+            errorContainer.innerHTML = '';
+            resultContainer.innerHTML = '';
             startTime = Date.now();
             timerValue.textContent = '0.0';
             timerInterval = setInterval(() => {
                 const elapsed = (Date.now() - startTime) / 1000;
                 timerValue.textContent = elapsed.toFixed(1);
             }, 100);
-        });
 
-        // Hide loader and stop timer when page is loaded with result or error
-        window.addEventListener('DOMContentLoaded', function() {
-            if (!loader.classList.contains('active')) {
+            try {
+                const response = await fetch(`${BACKEND_URL}/extract`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.error) {
+                    showError(data.error);
+                } else if (data.text) {
+                    showResult(data.text, data.engine);
+                }
+            } catch (error) {
+                showError(`Connection error: ${error.message}`);
+            } finally {
+                loader.classList.remove('active');
+                loaderOverlay.classList.remove('active');
                 clearInterval(timerInterval);
-                timerValue.textContent = '0.0';
             }
         });
+
+        function showError(message) {
+            errorContainer.innerHTML = `<div class="error"><strong>⚠️ Error:</strong> ${message}</div>`;
+        }
+
+        function showResult(text, engine) {
+            const engineName = engine === 'google' ? 'Google Cloud Vision API' : 'Tesseract OCR';
+            resultContainer.innerHTML = `
+                <div class="result">
+                    <h3>✓ Extracted Text (${engineName}):</h3>
+                    <pre>${escapeHtml(text)}</pre>
+                </div>
+            `;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
     </script>
 </body>
 </html>

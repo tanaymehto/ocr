@@ -1,9 +1,10 @@
-from flask import Flask, request, render_template, redirect, url_for, session
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+from google.cloud import vision
 from PIL import Image
 import os
 import io
 import tempfile
-import pytesseract
 
 try:
     from pdf2image import convert_from_path
@@ -13,95 +14,141 @@ except ImportError:
     print("Warning: pdf2image not installed. PDF support disabled.")
 
 try:
-    # Test if tesseract is available
-    pytesseract.get_tesseract_version()
+    import pytesseract
     TESSERACT_AVAILABLE = True
     print("✓ Tesseract OCR is ready")
-except Exception as e:
+except ImportError:
     TESSERACT_AVAILABLE = False
-    print(f"✗ Tesseract error: {e}")
+    print("✗ Tesseract not available")
 
-app = Flask(__name__, template_folder='templates')
-app.secret_key = 'ocr_secret_key_123'
-
-
-@app.route("/", methods=["GET", "POST"])
-def index():
-    result_text = ""
-    error_msg = ""
-
-    if request.method == "POST":
-        if "file" not in request.files:
-            error_msg = "Please select a file"
-        else:
-            file = request.files["file"]
-            
-            if file.filename == "":
-                error_msg = "No file selected"
-            else:
-                try:
-                    content = file.read()
-                    filename = file.filename.lower()
-                    
-                    if not TESSERACT_AVAILABLE:
-                        error_msg = "Tesseract OCR is not available"
-                    else:
-                        # Handle PDF files
-                        if filename.endswith('.pdf'):
-                            if not PDF_SUPPORT:
-                                error_msg = "PDF support requires pdf2image package"
-                            else:
-                                try:
-                                    with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp:
-                                        tmp.write(content)
-                                        tmp_path = tmp.name
-                                    
-                                    try:
-                                        images = convert_from_path(tmp_path, dpi=300)
-                                        all_text = []
-                                        
-                                        for image in images:
-                                            text = pytesseract.image_to_string(image, lang="eng")
-                                            if text.strip():
-                                                all_text.append(text)
-                                        
-                                        if all_text:
-                                            result_text = "\n\n--- Page Break ---\n\n".join(all_text)
-                                        else:
-                                            error_msg = "No text detected in PDF"
-                                    finally:
-                                        os.remove(tmp_path)
-                                except Exception as e:
-                                    error_msg = f"PDF processing error: {str(e)}"
-                        
-                        # Handle image files
-                        else:
-                            try:
-                                image = Image.open(io.BytesIO(content))
-                                result_text = pytesseract.image_to_string(image, lang="eng")
-                                if not result_text.strip():
-                                    error_msg = "No text detected in image"
-                            except Exception as e:
-                                error_msg = f"Tesseract error: {str(e)}"
-                            
-                except Exception as e:
-                    error_msg = f"Error: {str(e)}"
-        
-        # Store result in session to display after redirect
-        session['result_text'] = result_text
-        session['error_msg'] = error_msg
-        return redirect(url_for('index'))
+# Set credentials
+if os.path.exists('credentials.json'):
+    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'credentials.json'
+elif os.environ.get('GOOGLE_CREDENTIALS_JSON'):
+    # Create a temporary file for credentials from environment variable
+    # This is needed because Google Client expects a file path
+    import json
     
-    # Get result from session if available
-    if 'result_text' in session:
-        result_text = session.pop('result_text', '')
-    if 'error_msg' in session:
-        error_msg = session.pop('error_msg', '')
+    cred_content = os.environ.get('GOOGLE_CREDENTIALS_JSON')
+    try:
+        # Verify it's valid JSON
+        json.loads(cred_content)
+        
+        # Write to a temporary file
+        fd, path = tempfile.mkstemp()
+        with os.fdopen(fd, 'w') as tmp:
+            tmp.write(cred_content)
+        
+        os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = path
+        print("✓ Google Cloud credentials loaded from environment")
+    except Exception as e:
+        print(f"✗ Error loading credentials from environment: {e}")
 
-    return render_template("index.html", text=result_text, error=error_msg)
+try:
+    client = vision.ImageAnnotatorClient()
+    print("✓ Google Cloud Vision API is ready")
+except Exception as e:
+    print(f"✗ Vision API error: {e}")
+    client = None
+
+app = Flask(__name__)
+CORS(app)  # Enable CORS for frontend requests
+
+
+@app.route('/extract', methods=['POST'])
+def extract_text():
+    """API endpoint for text extraction"""
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file provided'}), 400
+    
+    file = request.files['file']
+    engine = request.form.get('engine', 'google')  # Default to Google Vision
+    
+    if file.filename == '':
+        return jsonify({'error': 'No file selected'}), 400
+    
+    # Validate engine choice
+    if engine == 'google' and not client:
+        return jsonify({'error': 'Google Vision API not initialized'}), 500
+    
+    if engine == 'tesseract' and not TESSERACT_AVAILABLE:
+        return jsonify({'error': 'Tesseract not available'}), 500
+    
+    try:
+        content = file.read()
+        filename = file.filename.lower()
+        result_text = ""
+        
+        # Handle PDF files
+        if filename.endswith('.pdf'):
+            if not PDF_SUPPORT:
+                return jsonify({'error': 'PDF support requires pdf2image package'}), 500
+            
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp:
+                tmp.write(content)
+                tmp_path = tmp.name
+            
+            try:
+                images = convert_from_path(tmp_path, dpi=300)
+                all_text = []
+                
+                for image in images:
+                    if engine == 'google':
+                        # Convert PIL image to bytes for Google Vision
+                        img_byte_arr = io.BytesIO()
+                        image.save(img_byte_arr, format='PNG')
+                        img_content = img_byte_arr.getvalue()
+                        
+                        vision_image = vision.Image(content=img_content)
+                        response = client.document_text_detection(image=vision_image)
+                        
+                        if response.full_text_annotation:
+                            all_text.append(response.full_text_annotation.text)
+                        elif response.text_annotations:
+                            all_text.append("\n".join([t.description for t in response.text_annotations[1:]]))
+                    else:  # Tesseract
+                        text = pytesseract.image_to_string(image)
+                        if text.strip():
+                            all_text.append(text)
+                
+                if all_text:
+                    result_text = "\n\n--- Page Break ---\n\n".join(all_text)
+                else:
+                    return jsonify({'error': 'No text detected in PDF'}), 400
+            finally:
+                os.remove(tmp_path)
+        
+        # Handle image files
+        else:
+            if engine == 'google':
+                vision_image = vision.Image(content=content)
+                response = client.document_text_detection(image=vision_image)
+                
+                if response.full_text_annotation:
+                    result_text = response.full_text_annotation.text
+                elif response.text_annotations:
+                    result_text = "\n".join([t.description for t in response.text_annotations[1:]])
+                else:
+                    return jsonify({'error': 'No text detected in image'}), 400
+            else:  # Tesseract
+                image = Image.open(io.BytesIO(content))
+                result_text = pytesseract.image_to_string(image)
+                if not result_text.strip():
+                    return jsonify({'error': 'No text detected in image'}), 400
+        
+        return jsonify({'text': result_text, 'engine': engine}), 200
+    
+    except Exception as e:
+        return jsonify({'error': f'Processing error: {str(e)}'}), 500
+
+
+@app.route('/health', methods=['GET'])
+def health():
+    """Health check endpoint"""
+    return jsonify({'status': 'ok', 'tesseract': TESSERACT_AVAILABLE}), 200
 
 
 if __name__ == "__main__":
     # For local development
     port = int(os.environ.get("PORT", 5000))
-    app.run(debug=True, host="0.0.0.0", port=port)
+    app.run(debug=False, host="0.0.0.0", port=port)

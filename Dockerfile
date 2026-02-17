@@ -24,4 +24,5 @@ COPY . .
 EXPOSE 8080
 
 # Command to run the application using Gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:8080", "app:app"]
+# Use 1 worker to save memory on free tier, 4 threads for concurrency, and 120s timeout
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "1", "--threads", "4", "--timeout", "120", "app:app"]
